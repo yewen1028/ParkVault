@@ -1,0 +1,5 @@
+PARKVAULT - PARKED VEHICLE LOG (who parked, when they came in and left)
+Event | Slot | Plate    | Driver               | Type       | Time
+------+------+----------+----------------------+------------+------
+IN    | 01   | PEW21    | yw                   | Car        | 01:00
+OUT   | 01   | PEW21    | yw                   | Car        | 02:30

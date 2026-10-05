@@ -1,0 +1,2 @@
+Plate,Driver,Vehicle_Type,Entry,Exit,Duration_Min,Billable_Hours,Rate_RM,Gross_RM,Discount_RM,Net_RM,Paid_RM,Change_RM
+PEW21,yw,Car,03:30,02:30,1380,23,2,20,2,18,50,32

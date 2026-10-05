@@ -1,0 +1,26 @@
+PARKVAULT - PARKING STATUS REPORT
+
+  +------+----------+--------------+-------+-----------+
+  | SLOT | PLATE    | VEHICLE TYPE | ENTRY | STATUS    |
+  +------+----------+--------------+-------+-----------+
+  |  01  | -        | -            | -     | FREE      |
+  |  02  | -        | -            | -     | FREE      |
+  |  03  | -        | -            | -     | FREE      |
+  |  04  | -        | -            | -     | FREE      |
+  |  05  | -        | -            | -     | FREE      |
+  |  06  | -        | -            | -     | FREE      |
+  |  07  | -        | -            | -     | FREE      |
+  |  08  | -        | -            | -     | FREE      |
+  |  09  | -        | -            | -     | FREE      |
+  |  10  | -        | -            | -     | FREE      |
+  +------+----------+--------------+-------+-----------+
+
+  ================= DAILY SUMMARY =================
+  Occupied slots  : 0
+  Free slots      : 10
+  Occupancy       : 0%
+  Lot usage       : [----------]
+  Total revenue   : RM0
+  Vehicles served : 0
+  Average fee     : RM0
+  =================================================

@@ -1,0 +1,21 @@
+
+  ================ PARKVAULT RECEIPT =================
+  Plate        : PEW21
+  Driver       : yw
+  Vehicle type : Car
+  Entry time   : 03:30
+  Exit time    : 02:30
+  Duration     : 1380 minutes
+  Billable hrs : 23
+  Rate / hour  : RM2
+  Gross fee    : RM20
+  Daily maximum rate applied (10 x hourly rate).
+  Member disc. : RM2
+  TOTAL DUE    : RM18
+  Amount paid  : RM50
+  Change       : RM32
+  Change given :
+     RM20 x 1
+     RM10 x 1
+     RM1 x 2
+  ====================================================

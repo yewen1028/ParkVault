@@ -43,17 +43,17 @@
 
 ; ==========================================================================
 section .data
-; ---- ANSI colour codes ----------------------------------------------------
+; ---- ANSI colour codes (warm 256-colour palette, soft not neon) ----------
 c_reset   db 27,"[0m",0
-c_red     db 27,"[91m",0
-c_green   db 27,"[92m",0
-c_yellow  db 27,"[93m",0
-c_blue    db 27,"[94m",0
-c_magenta db 27,"[95m",0
-c_cyan    db 27,"[96m",0
-c_white   db 27,"[1;97m",0
-c_banner  db 27,"[1;97;44m",0
-c_head    db 27,"[1;30;106m",0
+c_coral   db 27,"[38;5;167m",0          ; soft coral      - errors / exit
+c_olive   db 27,"[38;5;143m",0          ; warm olive      - success
+c_honey   db 27,"[38;5;222m",0          ; honey yellow    - menu / info
+c_sand    db 27,"[38;5;180m",0          ; sandy tan       - secondary items
+c_rose    db 27,"[38;5;174m",0          ; dusty rose      - status / pause
+c_peach   db 27,"[38;5;216m",0          ; apricot peach   - prompts / borders
+c_cream   db 27,"[1;38;5;230m",0        ; bold cream      - highlights
+c_banner  db 27,"[1;38;5;230;48;5;130m",0   ; cream on burnt orange
+c_head    db 27,"[1;38;5;52;48;5;223m",0    ; dark brown on soft peach
 c_clear   db 27,"[2J",0                 ; clear screen
 c_clear2  db 27,"[H",0                  ; cursor to top-left
 
@@ -301,7 +301,7 @@ menu_next:
 
 do_exit_clean:
     call save_reports                  ; auto-save before leaving
-    COLOR c_cyan
+    COLOR c_peach
     PRINT m_bye
     COLOR c_reset
     mov eax, 1                         ; sys_exit
@@ -493,7 +493,7 @@ get_number:                            ; esi = prompt, ebx = min, ecx = max
     push edi
     mov edi, esi
 .ask:
-    COLOR c_cyan
+    COLOR c_peach
     mov esi, edi
     call print_str
     COLOR c_reset
@@ -508,7 +508,7 @@ get_number:                            ; esi = prompt, ebx = min, ecx = max
     pop edx
     ret
 .invalid:
-    COLOR c_red
+    COLOR c_coral
     PRINT m_inv1
     push eax
     mov eax, ebx
@@ -547,7 +547,7 @@ get_time:                              ; esi = hour prompt, edi = minute prompt
 get_plate:                             ; validates, upper-cases -> plate_tmp
     pushad
 .ask:
-    COLOR c_cyan
+    COLOR c_peach
     PRINT p_plate
     COLOR c_reset
     call read_line
@@ -583,7 +583,7 @@ get_plate:                             ; validates, upper-cases -> plate_tmp
     popad
     ret
 .bad:
-    COLOR c_red
+    COLOR c_coral
     PRINT m_badplate
     COLOR c_reset
     jmp .ask
@@ -591,7 +591,7 @@ get_plate:                             ; validates, upper-cases -> plate_tmp
 get_name:                              ; validates letters/spaces -> name_tmp
     pushad
 .ask:
-    COLOR c_cyan
+    COLOR c_peach
     PRINT p_name
     COLOR c_reset
     call read_line
@@ -628,7 +628,7 @@ get_name:                              ; validates letters/spaces -> name_tmp
     popad
     ret
 .bad:
-    COLOR c_red
+    COLOR c_coral
     PRINT m_badname
     COLOR c_reset
     jmp .ask
@@ -663,7 +663,7 @@ store_name:                            ; ebx = slot index, copies name_tmp
     ret
 
 get_type:                              ; eax = vehicle type 1-3
-    COLOR c_yellow
+    COLOR c_honey
     PRINT m_types1
     PRINT m_types2
     PRINT m_types3
@@ -677,7 +677,7 @@ get_type:                              ; eax = vehicle type 1-3
 
 pause_enter:
     pushad
-    COLOR c_magenta
+    COLOR c_rose
     PRINT m_pause
     COLOR c_reset
     call read_line
@@ -805,7 +805,7 @@ select_slot:                           ; eax = occupied slot index, -1 = cancel
     dec eax
     cmp byte [slot_used+eax], 1
     je  .ok
-    COLOR c_red
+    COLOR c_coral
     PRINT m_slotempty
     COLOR c_reset
     jmp .ask
@@ -818,7 +818,7 @@ select_slot:                           ; eax = occupied slot index, -1 = cancel
 
 show_vehicle:                          ; ebx = slot index
     pushad
-    COLOR c_cyan
+    COLOR c_peach
     PRINT v_head
     COLOR c_reset
     PRINT v_slot
@@ -827,7 +827,7 @@ show_vehicle:                          ; ebx = slot index
     call print_num2
     PRINT nl
     PRINT v_plate
-    COLOR c_yellow
+    COLOR c_honey
     call plate_addr
     call print_str
     COLOR c_reset
@@ -857,13 +857,13 @@ park_vehicle:
     call find_free_slot
     cmp eax, -1
     jne .have
-    COLOR c_red
+    COLOR c_coral
     PRINT m_full
     COLOR c_reset
     jmp .done
 .have:
     mov [tmp_slot], eax
-    COLOR c_green
+    COLOR c_olive
     PRINT m_assigned
     inc eax
     call print_num2
@@ -873,7 +873,7 @@ park_vehicle:
     call find_plate
     cmp eax, -1
     je  .unique
-    COLOR c_red
+    COLOR c_coral
     PRINT m_dup
     inc eax
     call print_num2
@@ -896,7 +896,7 @@ park_vehicle:
     mov [slot_type+ebx], al
     mov eax, [tmp_entry]
     mov [slot_entry+ebx*2], ax
-    COLOR c_green
+    COLOR c_olive
     PRINT m_parked
     COLOR c_reset
     call show_vehicle
@@ -912,11 +912,11 @@ park_vehicle:
 ; ==========================================================================
 view_lot:
     pushad
-    COLOR c_cyan
+    COLOR c_peach
     PRINT m_tline
     COLOR c_head
     PRINT m_thead
-    COLOR c_cyan
+    COLOR c_peach
     PRINT m_tline
     COLOR c_reset
     xor ebx, ebx
@@ -930,7 +930,7 @@ view_lot:
     PRINT m_slotr
     cmp byte [slot_used+ebx], 1
     jne .free
-    COLOR c_yellow
+    COLOR c_honey
     call plate_addr
     mov ecx, 8
     call print_str_pad
@@ -945,7 +945,7 @@ view_lot:
     movzx eax, word [slot_entry+ebx*2]
     call print_time
     PRINT m_sep
-    COLOR c_red
+    COLOR c_coral
     mov esi, m_occupied
     mov ecx, 9
     call print_str_pad
@@ -964,7 +964,7 @@ view_lot:
     mov ecx, 5
     call print_str_pad
     PRINT m_sep
-    COLOR c_green
+    COLOR c_olive
     mov esi, m_free
     mov ecx, 9
     call print_str_pad
@@ -974,7 +974,7 @@ view_lot:
     inc ebx
     jmp .row
 .end:
-    COLOR c_cyan
+    COLOR c_peach
     PRINT m_tline
     COLOR c_reset
     popad
@@ -989,7 +989,7 @@ search_vehicle:
     call find_plate
     cmp eax, -1
     jne .found
-    COLOR c_red
+    COLOR c_coral
     PRINT m_notfound
     COLOR c_reset
     jmp .done
@@ -1013,7 +1013,7 @@ update_vehicle:
 .menu:
     mov ebx, [tmp_slot]
     call show_vehicle
-    COLOR c_yellow
+    COLOR c_honey
     PRINT m_upd1
     PRINT m_upd2
     PRINT m_upd3
@@ -1046,7 +1046,7 @@ update_vehicle:
     je  .plate_ok
     cmp eax, [tmp_slot]
     je  .plate_ok                      ; same vehicle, same plate
-    COLOR c_red
+    COLOR c_coral
     PRINT m_dup
     inc eax
     call print_num2
@@ -1069,7 +1069,7 @@ update_vehicle:
     mov ebx, [tmp_slot]
     mov [slot_entry+ebx*2], ax
 .saved:
-    COLOR c_green
+    COLOR c_olive
     PRINT m_updated
     COLOR c_reset
     jmp .menu
@@ -1176,7 +1176,7 @@ checkout:
     mov dword [b_change], 0
 .paid:
     call print_payment
-    COLOR c_green
+    COLOR c_olive
     PRINT m_checkedout
     COLOR c_reset
 
@@ -1201,11 +1201,11 @@ checkout:
 ; --------------------------------------------------------------------------
 print_bill:
     pushad
-    COLOR c_cyan
+    COLOR c_peach
     PRINT r_top
     COLOR c_reset
     PRINT v_plate
-    COLOR c_yellow
+    COLOR c_honey
     mov ebx, [b_slot]
     call plate_addr
     call print_str
@@ -1243,14 +1243,14 @@ print_bill:
     PRINT nl
     cmp dword [b_capped], 1
     jne .nocap
-    COLOR c_yellow
+    COLOR c_honey
     PRINT m_cap
     COLOR c_reset
 .nocap:
     PRINT r_disc
     NUM b_disc
     PRINT nl
-    COLOR c_green
+    COLOR c_olive
     PRINT r_total
     NUM b_net
     PRINT nl
@@ -1262,7 +1262,7 @@ print_payment:
     pushad
     cmp dword [b_net], 0
     jne .paid
-    COLOR c_green
+    COLOR c_olive
     PRINT m_free_exit
     COLOR c_reset
     jmp .end
@@ -1270,7 +1270,7 @@ print_payment:
     PRINT r_paid
     NUM b_paid
     PRINT nl
-    COLOR c_yellow
+    COLOR c_honey
     PRINT r_change
     NUM b_change
     PRINT nl
@@ -1281,7 +1281,7 @@ print_payment:
     mov eax, [b_change]
     call print_breakdown
 .end:
-    COLOR c_cyan
+    COLOR c_peach
     PRINT r_bottom
     COLOR c_reset
     popad
@@ -1321,7 +1321,7 @@ print_breakdown:                       ; eax = change, loops over denominations
 ; ==========================================================================
 show_summary:
     pushad
-    COLOR c_cyan
+    COLOR c_peach
     PRINT s_head
     COLOR c_reset
     call count_occupied
@@ -1345,7 +1345,7 @@ show_summary:
     PRINT s_pct2
     PRINT s_bar
     mov ecx, [tmp_occ]
-    COLOR c_red
+    COLOR c_coral
 .b1:
     test ecx, ecx
     jz  .b1done
@@ -1353,7 +1353,7 @@ show_summary:
     dec ecx
     jmp .b1
 .b1done:
-    COLOR c_green
+    COLOR c_olive
     mov ecx, MAXSLOTS
     sub ecx, [tmp_occ]
 .b2:
@@ -1365,7 +1365,7 @@ show_summary:
 .b2done:
     COLOR c_reset
     PRINT s_barend
-    COLOR c_yellow
+    COLOR c_honey
     PRINT s_rev
     NUM total_revenue
     PRINT nl
@@ -1385,7 +1385,7 @@ show_summary:
     call print_num
 .avgdone:
     PRINT nl
-    COLOR c_cyan
+    COLOR c_peach
     PRINT s_bottom
     COLOR c_reset
     popad
@@ -1404,20 +1404,20 @@ draw_menu:
     PRINT m_t3
     COLOR c_reset
     PRINT nl
-    COLOR c_yellow
+    COLOR c_honey
     PRINT m_menu1
     PRINT m_menu2
     PRINT m_menu3
     PRINT m_menu4
     PRINT m_menu5
-    COLOR c_blue
+    COLOR c_sand
     PRINT m_menu6
     PRINT m_menu7
-    COLOR c_red
+    COLOR c_coral
     PRINT m_menu8
     COLOR c_reset
     PRINT nl
-    COLOR c_magenta
+    COLOR c_rose
     PRINT m_status
     call count_occupied
     call print_num
@@ -1468,7 +1468,7 @@ close_fd:                              ; ebx = fd
     ret
 
 file_error:
-    COLOR c_red
+    COLOR c_coral
     PRINT m_fileerr
     COLOR c_reset
     ret
@@ -1692,7 +1692,7 @@ save_reports:                          ; writes parking_status.txt and .csv
     mov ebx, [fd_tmp]
     call close_fd
     pop dword [out_fd]
-    COLOR c_green
+    COLOR c_olive
     PRINT m_saved1
     PRINT m_saved2
     COLOR c_reset

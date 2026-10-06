@@ -41,12 +41,12 @@
     pop eax
 %endmacro
 
-%macro SET_BACK 1                       ; Esc jumps to %1 (same stack depth as here)
+%macro SET_BACK 1                       ; typing 9 jumps to %1 (same stack depth as here)
     mov [back_esp], esp
     mov dword [back_addr], %1
 %endmacro
 
-%macro BACK_TO_MENU 0                   ; Esc returns to the main menu
+%macro BACK_TO_MENU 0                   ; typing 9 returns to the main menu
     push eax
     mov eax, [menu_esp]
     mov [back_esp], eax
@@ -88,8 +88,8 @@ m_menu8 db "   [8] Exit",10,0
 m_status db "   Lot status : ",0
 m_of     db " of ",0
 m_occ    db " slots occupied",10,0
-m_hint   db "   Tip: press Esc at any prompt to go back one page",10,10,0
-bs_seq   db 8," ",8,0                   ; backspace: step left, blank, step left
+m_hint   db "   Tip: type 9 and press Enter to go back one page",10
+         db "        (to enter the number nine, type 09)",10,10,0
 
 p_choice db "  Enter your choice (1-8): ",0
 m_pause  db 10,"  Press Enter to continue...",0
@@ -235,10 +235,6 @@ back_esp    resd 1                      ; stack pointer to restore on "back"
 back_addr   resd 1                      ; where "back" jumps to
 rdbuf       resb 1
 chbuf       resb 1
-term_old    resb 36                     ; terminal settings at start-up (struct termios)
-term_raw    resb 36                     ; same, with line buffering and echo off
-raw_on      resd 1                      ; 1 = key-by-key input is active
-pollfd      resd 2                      ; struct pollfd for sys_poll
 
 tmp_slot    resd 1
 tmp_type    resd 1
@@ -271,7 +267,6 @@ section .text
 global _start
 
 _start:
-    call term_setup                    ; read keys one by one so Esc works at once
 ; --------------------------------------------------------------------------
 ;  MAIN MENU LOOP  (loop + conditional / unconditional jumps)
 ; --------------------------------------------------------------------------
@@ -324,9 +319,8 @@ menu_next:
     call pause_enter
     jmp  main_menu                     ; unconditional jump: back to the menu
 
-do_back:                               ; user pressed Esc: unwind to the previous page
+do_back:                               ; user typed 9: unwind to the previous page
     mov esp, [back_esp]                ; drop everything pushed since SET_BACK
-    PRINT nl
     jmp [back_addr]
 
 do_exit_clean:
@@ -334,16 +328,8 @@ do_exit_clean:
     COLOR c_peach
     PRINT m_bye
     COLOR c_reset
-    call term_restore
     mov eax, 1                         ; sys_exit
     xor ebx, ebx
-    int 0x80
-
-on_signal:                             ; Ctrl+C: put the terminal back, then quit
-    call term_restore
-    COLOR c_reset
-    mov eax, 1
-    mov ebx, 130
     int 0x80
 
 ; ==========================================================================
@@ -453,159 +439,45 @@ set_color:                             ; esi = ANSI string (screen only)
 ; ==========================================================================
 ;  INPUT HELPERS
 ; ==========================================================================
-term_setup:                            ; switch stdin to key-by-key input
-    pushad
-    mov eax, 54                        ; sys_ioctl
-    xor ebx, ebx
-    mov ecx, 0x5401                    ; TCGETS
-    mov edx, term_old
-    int 0x80
-    test eax, eax
-    jnz .done                          ; not a terminal (e.g. piped input)
-    mov esi, term_old
-    mov edi, term_raw
-    mov ecx, 36
-    cld
-    rep movsb
-    and dword [term_raw+12], ~(2|8)    ; c_lflag: clear ICANON and ECHO
-    mov byte [term_raw+17+6], 1        ; VMIN  = 1 key per read
-    mov byte [term_raw+17+5], 0        ; VTIME = no timeout
-    mov eax, 54
-    xor ebx, ebx
-    mov ecx, 0x5402                    ; TCSETS
-    mov edx, term_raw
-    int 0x80
-    test eax, eax
-    jnz .done
-    mov dword [raw_on], 1
-    mov eax, 48                        ; sys_signal(SIGINT, on_signal)
-    mov ebx, 2
-    mov ecx, on_signal
-    int 0x80
-    mov eax, 48                        ; sys_signal(SIGTERM, on_signal)
-    mov ebx, 15
-    mov ecx, on_signal
-    int 0x80
-.done:
-    popad
-    ret
-
-term_restore:                          ; put the start-up terminal settings back
-    pushad
-    cmp dword [raw_on], 1
-    jne .done
-    mov eax, 54
-    xor ebx, ebx
-    mov ecx, 0x5402                    ; TCSETS
-    mov edx, term_old
-    int 0x80
-    mov dword [raw_on], 0
-.done:
-    popad
-    ret
-
-echo_char:                             ; al = key to show (only when echo is ours)
-    cmp dword [raw_on], 1
-    jne .skip
-    pushad
-    mov [chbuf], al
-    mov eax, 4                         ; sys_write to the screen
-    mov ebx, 1
-    mov ecx, chbuf
-    mov edx, 1
-    int 0x80
-    popad
-.skip:
-    ret
-
-key_waiting:                           ; edx = wait in ms, CF=1 if a key is waiting
-    pushad
-    mov dword [pollfd], 0              ; fd 0 (stdin)
-    mov dword [pollfd+4], 1            ; events = POLLIN
-    mov eax, 168                       ; sys_poll
-    mov ebx, pollfd
-    mov ecx, 1
-    int 0x80
-    cmp eax, 1
-    cmc                                ; CF = (eax >= 1)
-    popad
-    ret
-
-read_key:                              ; al = next key; leaves at end of input
-    push ebx
-    push ecx
-    push edx
-    mov eax, 3                         ; sys_read, one byte
-    mov ebx, 0
-    mov ecx, rdbuf
-    mov edx, 1
-    int 0x80
-    cmp eax, 1
-    jne .eof
-    mov al, [rdbuf]
-    pop edx
-    pop ecx
-    pop ebx
-    ret
-.eof:
-    jmp do_exit_clean
-
 read_line:                             ; line_buf <- one line, eax = length
-    push ebx                           ; Esc on its own jumps to do_back
+    push ebx
     push ecx
     push edx
     push edi
     xor edi, edi
 .rd:
-    call read_key
-    cmp al, 27
-    je  .esc
+    mov eax, 3                         ; sys_read, one byte at a time
+    mov ebx, 0
+    mov ecx, rdbuf
+    mov edx, 1
+    int 0x80
+    cmp eax, 1
+    jne .eof                           ; end of input: leave the program
+    mov al, [rdbuf]
     cmp al, 10
     je  .done
     cmp al, 13
     je  .rd
-    cmp al, 127                        ; Backspace (DEL) or Ctrl+H
-    je  .bs
-    cmp al, 8
-    je  .bs
-    cmp al, ' '
-    jb  .rd                            ; ignore other control keys
     cmp edi, 62
     jae .rd                            ; buffer full: ignore extra characters
     mov [line_buf+edi], al
     inc edi
-    call echo_char
-    jmp .rd
-.bs:
-    test edi, edi
-    jz  .rd
-    dec edi
-    cmp dword [raw_on], 1
-    jne .rd
-    PRINT bs_seq
-    jmp .rd
-.esc:
-    cmp dword [raw_on], 1
-    jne do_back                        ; piped input: Esc byte = back
-    mov edx, 30
-    call key_waiting                   ; arrow keys send Esc + more bytes at once
-    jnc do_back                        ; nothing follows: a real Esc press
-.drain:
-    call read_key                      ; swallow the rest of the key sequence
-    mov edx, 5
-    call key_waiting
-    jc  .drain
     jmp .rd
 .done:
-    mov al, 10
-    call echo_char
     mov byte [line_buf+edi], 0
+    cmp edi, 1                         ; a lone "9" + Enter means go back
+    jne .notback                       ; ("09" still reads as the number 9)
+    cmp byte [line_buf], '9'
+    je  do_back
+.notback:
     mov eax, edi
     pop edi
     pop edx
     pop ecx
     pop ebx
     ret
+.eof:
+    jmp do_exit_clean
 
 parse_number:                          ; line_buf -> eax, CF=1 when invalid
     push ebx
@@ -1162,14 +1034,14 @@ search_vehicle:
 ; ==========================================================================
 update_vehicle:
     pushad
-.select:                               ; page 1: choose a slot (Esc = main menu)
+.select:                               ; page 1: choose a slot (9 = main menu)
     BACK_TO_MENU
     call view_lot
     call select_slot
     cmp eax, -1
     je  .back
     mov [tmp_slot], eax
-.menu:                                 ; page 2: choose a field (Esc = page 1)
+.menu:                                 ; page 2: choose a field (9 = page 1)
     SET_BACK .select
     mov ebx, [tmp_slot]
     call show_vehicle
@@ -1185,7 +1057,7 @@ update_vehicle:
     mov ebx, 0
     mov ecx, 4
     call get_number
-    SET_BACK .menu                     ; page 3: edit a field (Esc = page 2)
+    SET_BACK .menu                     ; page 3: edit a field (9 = page 2)
     cmp eax, 1
     je  .plate
     cmp eax, 2

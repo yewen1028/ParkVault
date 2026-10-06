@@ -41,6 +41,19 @@
     pop eax
 %endmacro
 
+%macro SET_BACK 1                       ; typing B jumps to %1 (same stack depth as here)
+    mov [back_esp], esp
+    mov dword [back_addr], %1
+%endmacro
+
+%macro BACK_TO_MENU 0                   ; typing B returns to the main menu
+    push eax
+    mov eax, [menu_esp]
+    mov [back_esp], eax
+    mov dword [back_addr], main_menu
+    pop eax
+%endmacro
+
 ; ==========================================================================
 section .data
 ; ---- ANSI colour codes (warm 256-colour palette, soft not neon) ----------
@@ -74,7 +87,8 @@ m_menu7 db "   [7] Save Reports              (TXT + CSV)",10,0
 m_menu8 db "   [8] Exit",10,0
 m_status db "   Lot status : ",0
 m_of     db " of ",0
-m_occ    db " slots occupied",10,10,0
+m_occ    db " slots occupied",10,0
+m_hint   db "   Tip: type B at any prompt to go back one page",10,10,0
 
 p_choice db "  Enter your choice (1-8): ",0
 m_pause  db 10,"  Press Enter to continue...",0
@@ -215,6 +229,9 @@ plate_tmp   resb PLATELEN
 slot_name   resb MAXSLOTS*NAMELEN
 name_tmp    resb NAMELEN
 line_buf    resb 64
+menu_esp    resd 1                      ; stack pointer at the main menu
+back_esp    resd 1                      ; stack pointer to restore on "back"
+back_addr   resd 1                      ; where "back" jumps to
 rdbuf       resb 1
 chbuf       resb 1
 
@@ -253,6 +270,8 @@ _start:
 ;  MAIN MENU LOOP  (loop + conditional / unconditional jumps)
 ; --------------------------------------------------------------------------
 main_menu:
+    mov [menu_esp], esp                ; remember the top-level stack
+    BACK_TO_MENU
     call draw_menu
     mov esi, p_choice
     mov ebx, 1
@@ -298,6 +317,10 @@ do_save:
 menu_next:
     call pause_enter
     jmp  main_menu                     ; unconditional jump: back to the menu
+
+do_back:                               ; user typed B: unwind to the previous page
+    mov esp, [back_esp]                ; drop everything pushed since SET_BACK
+    jmp [back_addr]
 
 do_exit_clean:
     call save_reports                  ; auto-save before leaving
@@ -441,6 +464,13 @@ read_line:                             ; line_buf <- one line, eax = length
     jmp .rd
 .done:
     mov byte [line_buf+edi], 0
+    cmp edi, 1                         ; a single "B" or "b" means go back
+    jne .notback
+    mov al, [line_buf]
+    or  al, 32                         ; to lower case
+    cmp al, 'b'
+    je  do_back
+.notback:
     mov eax, edi
     pop edi
     pop edx
@@ -1005,12 +1035,15 @@ search_vehicle:
 ; ==========================================================================
 update_vehicle:
     pushad
+.select:                               ; page 1: choose a slot (B = main menu)
+    BACK_TO_MENU
     call view_lot
     call select_slot
     cmp eax, -1
     je  .back
     mov [tmp_slot], eax
-.menu:
+.menu:                                 ; page 2: choose a field (B = page 1)
+    SET_BACK .select
     mov ebx, [tmp_slot]
     call show_vehicle
     COLOR c_honey
@@ -1025,6 +1058,7 @@ update_vehicle:
     mov ebx, 0
     mov ecx, 4
     call get_number
+    SET_BACK .menu                     ; page 3: edit a field (B = page 2)
     cmp eax, 1
     je  .plate
     cmp eax, 2
@@ -1425,6 +1459,8 @@ draw_menu:
     mov eax, MAXSLOTS
     call print_num
     PRINT m_occ
+    COLOR c_sand
+    PRINT m_hint
     COLOR c_reset
     popad
     ret
